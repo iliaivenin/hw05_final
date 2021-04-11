@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% load thumbnail %}
-{% block title %}Последние обновления на сайте{% endblock %}
+{% block title %}Follow{% endblock %}
 {% block content %}
   <div class="container">
     {% include "menu.html" with index=True %}
-      <h1> Последние обновления на сайте</h1>
+      <h1> Follow</h1>
       {% load cache %}
         {% cache 20 index_page page %}
         {% for post in page %}

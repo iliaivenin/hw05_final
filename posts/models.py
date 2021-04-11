@@ -99,3 +99,22 @@ class Comment(models.Model):
     def __str__(self):
         return (f'Текст комментария: {self.text[:20]} | '
                 f'автор: {self.author}')
+
+
+class Follow(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name="пользователь",
+        related_name="follower",
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name="автор",
+        related_name="following",
+    )
+
+    # def __str__(self):
+    #     return (f'Текст комментария: {self.text[:20]} | '
+    #             f'автор: {self.author}')

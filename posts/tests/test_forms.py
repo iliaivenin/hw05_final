@@ -111,7 +111,7 @@ class PostFormTests(TestCase):
         # self.assertEqual(new_post.image, self.image)
         self.assertEqual(
             new_post.image,
-            f'posts/{form_data["image"].name}'
+            f"posts/{form_data['image'].name}"
         )
 
     def test_edit_post(self):

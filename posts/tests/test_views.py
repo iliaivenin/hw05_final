@@ -1,7 +1,6 @@
 # import os
 import shutil
 import tempfile
-# import time
 
 from django.conf import settings
 from django.core.cache import cache
@@ -169,24 +168,26 @@ class CacheTests(TestCase):
         self.author_authorized_client.force_login(self.author)
 
     def test_new_post_creates_new_post(self):
-        """Главная страница кэширует информацию на 20 секунд"""
-        response_index_before_adding_post = self.guest_client.get(INDEX_URL)
-        print(len(response_index_before_adding_post.context['page']))
+        """Главная страница кэширует информацию"""
+        posts_id = tuple(Post.objects.all().values_list('id', flat=True))
+        response = self.guest_client.get(INDEX_URL)
         Post.objects.create(
             text=POST_TEXT_2,
             author=self.author,
             group=self.group_1
         )
-        response_index_after_adding_post = self.guest_client.get(INDEX_URL)
-        print(len(response_index_after_adding_post.context['page']))
-        # self.assertEqual(
-        #     response_index_before_adding_post.context['page'].object_list,
-        #     response_index_after_adding_post.context['page'].object_list
-        # )
+        response_after_adding_post = self.guest_client.get(INDEX_URL)
+        self.assertEqual(
+            response.content,
+            response_after_adding_post.content
+        )
         cache.clear()
-        response_index_after_cache_clear = self.guest_client.get(INDEX_URL)
-        # self.assertEqual(
-        #     response_index_before_adding_post.context['page'].object_list,
-        #     response_index_after_cache_clear.context['page'].object_list
-        # )
-        print(len(response_index_after_cache_clear.context['page']))
+        response_after_cache_clear = self.guest_client.get(INDEX_URL)
+        self.assertEqual(
+            Post.objects.exclude(id__in=posts_id).count(), 1
+        )
+        # new_post = Post.objects.exclude(id__in=posts_id).first()
+        self.assertNotEqual(
+            response.content,
+            response_after_cache_clear.content
+        )

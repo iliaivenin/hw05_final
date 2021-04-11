@@ -1,11 +1,13 @@
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.shortcuts import get_object_or_404, redirect, render
-# from django.views.decorators.cache import cache_page
+from django.shortcuts import (get_list_or_404, get_object_or_404, redirect,
+                              render)
 
 from .forms import CommentForm, PostForm
-from .models import Group, Post, User
+from .models import Follow, Group, Post, User
 from .settings import POSTS_PER_PAGE
+
+# from django.views.decorators.cache import cache_page
 
 
 # @cache_page(20)
@@ -95,15 +97,47 @@ def post_edit(request, username, post_id):
 def add_comment(request, username, post_id):
     post = get_object_or_404(Post, author__username=username, id=post_id)
     form = CommentForm(request.POST or None)
-    # if request.method == 'POST' and request.user.is_authenticated:
-    #     form = CommentForm(request.POST)
     if form.is_valid():
         comment = form.save(commit=False)
         comment.author = request.user
         comment.post = post
         comment.save()
-    # form = CommentForm()
     return redirect('post', username, post_id)
+
+
+@login_required
+def follow_index(request):
+    # информация о текущем пользователе доступна в переменной request.user
+    # following = get_list_or_404(Follow, request.user)
+    # post_list = get_list_or_404(Post, following)
+    # paginator = Paginator(post_list, POSTS_PER_PAGE)
+    # page_number = request.GET.get('page')
+    # page = paginator.get_page(page_number)
+    # return render(request, "follow.html", {'page': page})
+    pass
+
+
+@login_required
+def profile_follow(request, username):
+    author = User.objects.get(username=username)
+    if (
+        request.user != author and not Follow.objects.filter(
+            user=request.user, author=author
+        ).exists()
+    ):
+        Follow.objects.create(user=request.user, author=author)
+    return redirect('profile', username)
+
+
+@login_required
+def profile_unfollow(request, username):
+    author = User.objects.get(username=username)
+    get_object_or_404(
+        Follow,
+        user=request.user,
+        author=author
+    ).delete()
+    return redirect('profile', username=username)
 
 
 def page_not_found(request, exception):
