@@ -132,16 +132,17 @@ class PostPagesTests(TestCase):
             response.content,
             response_after_adding_post.content
         )
+        self.assertNotContains(response_after_adding_post, POST_TEXT_2)
         cache.clear()
         response_after_cache_clear = self.guest_client.get(INDEX_URL)
         self.assertEqual(
             Post.objects.exclude(id__in=posts_id).count(), 1
         )
-        # new_post = Post.objects.exclude(id__in=posts_id).first()
         self.assertNotEqual(
             response.content,
             response_after_cache_clear.content
         )
+        self.assertContains(response_after_cache_clear, POST_TEXT_2)
 
 
 class PaginatorViewsTest(TestCase):
