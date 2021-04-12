@@ -16,6 +16,8 @@ PROFILE_URL = reverse('profile', args=[USERNAME])
 LOGIN_URL = reverse('login')
 LOGIN_NEW_POST_URL = f'{LOGIN_URL}?next={NEW_POST_URL}'
 PAGE_404 = '/page/not/found'
+FOLLOW_URL = reverse('follow_index')
+LOGIN_FOLLOW_URL = f'{LOGIN_URL}?next={FOLLOW_URL}'
 
 
 class PostURLTests(TestCase):
@@ -64,6 +66,8 @@ class PostURLTests(TestCase):
             [self.POST_EDIT_URL, self.guest_client, 302],
             [NEW_POST_URL, self.guest_client, 302],
             [PAGE_404, self.guest_client, 404],
+            [FOLLOW_URL, self.guest_client, 302],
+            [FOLLOW_URL, self.user_authorized_client, 200],
         ]
         for url, client, code in responses:
             with self.subTest(url=url):
@@ -72,7 +76,8 @@ class PostURLTests(TestCase):
     def test_redirects(self):
         """Проверка перенаправлений"""
         redirects = [
-            ([NEW_POST_URL, self.guest_client, LOGIN_NEW_POST_URL]),
+            [NEW_POST_URL, self.guest_client, LOGIN_NEW_POST_URL],
+            [FOLLOW_URL, self.guest_client, LOGIN_FOLLOW_URL],
             [self.POST_EDIT_URL, self.guest_client, self.POST_URL],
             [self.POST_EDIT_URL, self.user_authorized_client, self.POST_URL],
         ]
@@ -90,6 +95,7 @@ class PostURLTests(TestCase):
             [GROUP_URL, self.guest_client, 'group.html'],
             [NEW_POST_URL, self.user_authorized_client, 'new.html'],
             [PROFILE_URL, self.guest_client, 'profile.html'],
+            [FOLLOW_URL, self.user_authorized_client, 'follow.html'],
             [self.POST_URL, self.user_authorized_client, 'post.html'],
             [self.POST_EDIT_URL, self.author_authorized_client, 'new.html'],
         ]

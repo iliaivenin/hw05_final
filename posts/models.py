@@ -114,7 +114,3 @@ class Follow(models.Model):
         verbose_name="автор",
         related_name="following",
     )
-
-    # def __str__(self):
-    #     return (f'Текст комментария: {self.text[:20]} | '
-    #             f'автор: {self.author}')

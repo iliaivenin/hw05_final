@@ -78,6 +78,7 @@ class PostPagesTests(TestCase):
         super().tearDownClass()
 
     def setUp(self):
+        self.guest_client = Client()
         self.author_authorized_client = Client()
         self.author_authorized_client.force_login(self.author)
 
@@ -117,6 +118,31 @@ class PostPagesTests(TestCase):
                 response = self.author_authorized_client.get(url)
                 self.assertEqual(response.context['author'].username, USERNAME)
 
+    def test_new_post_creates_new_post(self):
+        """Главная страница кэширует информацию"""
+        posts_id = tuple(Post.objects.all().values_list('id', flat=True))
+        response = self.guest_client.get(INDEX_URL)
+        Post.objects.create(
+            text=POST_TEXT_2,
+            author=self.author,
+            group=self.group_1
+        )
+        response_after_adding_post = self.guest_client.get(INDEX_URL)
+        self.assertEqual(
+            response.content,
+            response_after_adding_post.content
+        )
+        cache.clear()
+        response_after_cache_clear = self.guest_client.get(INDEX_URL)
+        self.assertEqual(
+            Post.objects.exclude(id__in=posts_id).count(), 1
+        )
+        # new_post = Post.objects.exclude(id__in=posts_id).first()
+        self.assertNotEqual(
+            response.content,
+            response_after_cache_clear.content
+        )
+
 
 class PaginatorViewsTest(TestCase):
     @classmethod
@@ -142,52 +168,4 @@ class PaginatorViewsTest(TestCase):
         self.assertEqual(
             len(self.client.get(f'{INDEX_URL}?page=2').context['page']),
             self.DELTA
-        )
-
-
-class CacheTests(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.author = User.objects.create_user(USERNAME)
-        cls.group_1 = Group.objects.create(
-            title=GROUP_TITLE_1,
-            slug=SLUG_1,
-            description=GROUP_DESCRIPTION_1
-
-        )
-        cls.post = Post.objects.create(
-            text=POST_TEXT,
-            author=cls.author,
-            group=cls.group_1,
-        )
-
-    def setUp(self):
-        self.guest_client = Client()
-        self.author_authorized_client = Client()
-        self.author_authorized_client.force_login(self.author)
-
-    def test_new_post_creates_new_post(self):
-        """Главная страница кэширует информацию"""
-        posts_id = tuple(Post.objects.all().values_list('id', flat=True))
-        response = self.guest_client.get(INDEX_URL)
-        Post.objects.create(
-            text=POST_TEXT_2,
-            author=self.author,
-            group=self.group_1
-        )
-        response_after_adding_post = self.guest_client.get(INDEX_URL)
-        self.assertEqual(
-            response.content,
-            response_after_adding_post.content
-        )
-        cache.clear()
-        response_after_cache_clear = self.guest_client.get(INDEX_URL)
-        self.assertEqual(
-            Post.objects.exclude(id__in=posts_id).count(), 1
-        )
-        # new_post = Post.objects.exclude(id__in=posts_id).first()
-        self.assertNotEqual(
-            response.content,
-            response_after_cache_clear.content
         )

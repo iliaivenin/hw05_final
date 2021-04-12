@@ -18,6 +18,7 @@ class RouteTests(TestCase):
         routes_reverse_names = [
             ['/', reverse('index')],
             ['/new/', reverse('new_post')],
+            ['/follow/', reverse('follow_index')],
             [f'/group/{SLUG}/', reverse('group_posts', args=[SLUG])],
             [f'/{USERNAME}/', reverse('profile', args=[USERNAME])],
             [f'/{USERNAME}/{post.id}/', reverse('post', args=[
