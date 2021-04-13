@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 
+from . import settings
+
 User = get_user_model()
 
 
@@ -52,7 +54,7 @@ class Post(models.Model):
         help_text="можно выбрать сообщество",
     )
     image = models.ImageField(
-        upload_to='posts/',
+        upload_to=settings.UPLOAD_FOLDER,
         verbose_name="изображение",
         blank=True,
         null=True,
@@ -61,7 +63,7 @@ class Post(models.Model):
     def __str__(self):
         OUTPUT = ('Текст: {text} | автор: {author} | сообщество: {group} | '
                   'дата публикации: {pub_date:%d.%m.%Y %H:%M}')
-        return OUTPUT.format(text=self.text[:15], author=self.author.username,
+        return OUTPUT.format(text=self.text[:20], author=self.author.username,
                              group=self.group, pub_date=self.pub_date)
 
     class Meta:
@@ -97,8 +99,9 @@ class Comment(models.Model):
         verbose_name_plural = "комментарии"
 
     def __str__(self):
-        return (f'Текст комментария: {self.text[:20]} | '
-                f'автор: {self.author}')
+        OUTPUT = 'Текст: {text} | автор: {author}'
+        return OUTPUT.format(text=self.text[:20],
+                             author=self.author.username)
 
 
 class Follow(models.Model):
@@ -114,3 +117,12 @@ class Follow(models.Model):
         verbose_name="автор",
         related_name="following",
     )
+
+    class Meta:
+        verbose_name = "подписка"
+        verbose_name_plural = "подписки"
+
+    def __str__(self):
+        OUTPUT = 'Пользователь: {user} | автор: {author}'
+        return OUTPUT.format(user=self.user.username,
+                             author=self.author.username)

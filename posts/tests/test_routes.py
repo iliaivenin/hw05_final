@@ -13,7 +13,6 @@ class RouteTests(TestCase):
     def test_routes(self):
         """Проверка маршрутов"""
         author = User.objects.create_user(USERNAME)
-        # group = Group.objects.create(slug=SLUG)
         post = Post.objects.create(text=POST_TEXT, author=author,)
         routes_reverse_names = [
             ['/', reverse('index')],
@@ -24,6 +23,12 @@ class RouteTests(TestCase):
             [f'/{USERNAME}/{post.id}/', reverse('post', args=[
                 USERNAME, post.id])],
             [f'/{USERNAME}/{post.id}/edit/', reverse('post_edit', args=[
+                USERNAME, post.id])],
+            [f'/{USERNAME}/follow/', reverse('profile_follow', args=[
+                USERNAME])],
+            [f'/{USERNAME}/unfollow/', reverse('profile_unfollow', args=[
+                USERNAME])],
+            [f'/{USERNAME}/{post.id}/comment/', reverse('add_comment', args=[
                 USERNAME, post.id])],
         ]
         for route, reverse_name in routes_reverse_names:

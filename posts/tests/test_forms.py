@@ -7,8 +7,9 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from posts.forms import PostForm
-from posts.models import Group, Post, User
+from .. import settings as set
+from posts.forms import CommentForm, PostForm
+from posts.models import Comment, Group, Post, User
 
 USERNAME = 'author'
 GROUP_TITLE = 'Тестовое сообщество'
@@ -20,8 +21,11 @@ GROUP_DESCRIPTION_2 = 'Тестовое описание группы 2'
 POST_TEXT = 'Тестовая публикация'
 POST_TEXT_2 = 'Тестовая публикация 2'
 EDITED_TEXT = 'Редактируем текст поста'
+COMMENT_TEXT_1 = 'Это комментарий 1'
+COMMENT_TEXT_2 = 'А это ещё комментарий'
 INDEX_URL = reverse('index')
 NEW_POST_URL = reverse('new_post')
+UPLOAD_FOLDER = set.UPLOAD_FOLDER
 IMAGE_CONTENT = (
     b'\x47\x49\x46\x38\x39\x61\x02\x00'
     b'\x01\x00\x80\x00\x00\x00\x00\x00'
@@ -78,7 +82,7 @@ class PostFormTests(TestCase):
         self.author_authorized_client.force_login(self.author)
 
     def test_create_post(self):
-        """Валидная форма создает запись в базе данных."""
+        """Валидная форма поста создает запись в базе данных."""
         posts_id = tuple(Post.objects.all().values_list('id', flat=True))
         posts_count = Post.objects.count()
         form_data = {
@@ -105,13 +109,12 @@ class PostFormTests(TestCase):
             Post.objects.filter(
                 text=POST_TEXT_2,
                 group=self.group.id,
-                image=f'posts/{IMAGE_NAME}'
+                image=f'{set.UPLOAD_FOLDER}{IMAGE_NAME}'
             ).exists()
         )
-        # self.assertEqual(new_post.image, self.image)
         self.assertEqual(
             new_post.image,
-            f"posts/{form_data['image'].name}"
+            f"{set.UPLOAD_FOLDER}{form_data['image'].name}"
         )
 
     def test_edit_post(self):
@@ -153,3 +156,70 @@ class PostFormTests(TestCase):
                     with self.subTest(value=value):
                         form_field = response.context['form'].fields[value]
                         self.assertIsInstance(form_field, expected)
+
+
+class CommentFormTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.form = CommentForm()
+        cls.author = User.objects.create_user(USERNAME)
+        cls.post = Post.objects.create(
+            text=POST_TEXT,
+            author=cls.author,
+        )
+        cls.comment = Comment.objects.create(
+            text=COMMENT_TEXT_1,
+            author=cls.author,
+            post=cls.post,
+        )
+        cls.POST_URL = reverse('post', args=[
+            CommentFormTests.author, CommentFormTests.post.id
+        ])
+        cls.COMMENT_ADD_URL = reverse('add_comment', args=[
+            CommentFormTests.author, CommentFormTests.post.id
+        ])
+
+    def setUp(self):
+        self.author_authorized_client = Client()
+        self.author_authorized_client.force_login(self.author)
+
+    def test_create_comment(self):
+        """Валидная форма комментария создает запись в базе данных."""
+        comments_id = tuple(Comment.objects.all().values_list('id', flat=True))
+        comments_count = Comment.objects.count()
+        form_data = {
+            'text': COMMENT_TEXT_2,
+            'post': self.post.id,
+        }
+        response = self.author_authorized_client.post(
+            self.COMMENT_ADD_URL,
+            data=form_data,
+            follow=True
+        )
+        self.assertRedirects(response, self.POST_URL)
+        self.assertEqual(
+            Comment.objects.count(), comments_count + 1)
+        self.assertEqual(
+            Comment.objects.exclude(id__in=comments_id).count(), 1
+        )
+        new_comment = Comment.objects.exclude(id__in=comments_id).first()
+        self.assertEqual(new_comment.text, form_data['text'])
+        self.assertEqual(new_comment.author, self.author)
+        self.assertTrue(
+            Comment.objects.filter(
+                text=COMMENT_TEXT_2,
+                post=self.post.id,
+            ).exists()
+        )
+
+    def test_comment_shows_correct_context(self):
+        """Шаблон comment сформирован с правильным контекстом."""
+        form_fields = {
+            'text': forms.CharField,
+        }
+        response = self.author_authorized_client.get(self.POST_URL)
+        for value, expected in form_fields.items():
+            with self.subTest(value=value):
+                form_field = response.context['form'].fields[value]
+                self.assertIsInstance(form_field, expected)

@@ -1,4 +1,3 @@
-# import os
 import shutil
 import tempfile
 
@@ -9,12 +8,12 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 
-from posts.models import Group, Post, User
+from posts.models import Follow, Group, Post, User
 from posts.settings import POSTS_PER_PAGE
 
 USERNAME = 'author'
 POST_TEXT = 'Тестовая публикация'
-POST_TEXT_2 = 'Тестовая публикация 2'
+POST_TEXT_2 = 'Очень уникальный текст, который нигде не повторяется'
 SLUG_1 = 'test_group_1'
 GROUP_TITLE_1 = 'Тестовое сообщество 1'
 GROUP_DESCRIPTION_1 = 'Тестовое описание группы 1'
@@ -26,6 +25,7 @@ GROUP_URL_2 = reverse('group_posts', args=[SLUG_2])
 INDEX_URL = reverse('index')
 NEW_POST_URL = reverse('new_post')
 PROFILE_URL = reverse('profile', args=[USERNAME])
+FOLLOW_URL = reverse('follow_index')
 IMAGE = (
     b'\x47\x49\x46\x38\x39\x61\x02\x00'
     b'\x01\x00\x80\x00\x00\x00\x00\x00'
@@ -71,6 +71,12 @@ class PostPagesTests(TestCase):
         cls.POST_EDIT_URL = reverse('post_edit', args=[
             cls.author, cls.post.id
         ])
+        cls.PROFILE_FOLLOW_URL = reverse('profile_follow', args=[
+            cls.author
+        ])
+        cls.PROFILE_UNFOLLOW_URL = reverse('profile_unfollow', args=[
+            cls.author
+        ])
 
     @classmethod
     def tearDownClass(cls):
@@ -81,6 +87,8 @@ class PostPagesTests(TestCase):
         self.guest_client = Client()
         self.author_authorized_client = Client()
         self.author_authorized_client.force_login(self.author)
+        self.user_authorized_client = Client()
+        self.user_authorized_client.force_login(self.user)
 
     def test_context(self):
         """Шаблоны страниц сформированы с правильным контекстом."""
@@ -100,10 +108,6 @@ class PostPagesTests(TestCase):
                 )
                 self.assertEqual(post.group, self.group_1)
                 self.assertEqual(post.image, 'posts/image.gif')
-                # self.assertIn(
-                #     os.path.relpath(post.image.name, start='posts'),
-                #     os.listdir(os.path.join(settings.MEDIA_ROOT, 'posts'))
-                # )
 
     def test_post_not_in_group_2(self):
         """Созданный пост не попал в чужую группу"""
@@ -143,6 +147,42 @@ class PostPagesTests(TestCase):
             response_after_cache_clear.content
         )
         self.assertContains(response_after_cache_clear, POST_TEXT_2)
+
+    def test_authorized_user_can_follow(self):
+        """Возможность подписываться на других пользователей"""
+        self.user_authorized_client.get(self.PROFILE_FOLLOW_URL)
+        follow = Follow.objects.filter(
+            author=self.author,
+            user=self.user
+        ).exists()
+        self.assertTrue(follow)
+
+    def test_authorized_user_can_unfollow(self):
+        """Возможность отписываться от других пользователей"""
+        follow = Follow.objects.create(
+            author=self.author,
+            user=self.user
+        )
+        follow_count = Follow.objects.count()
+        self.assertTrue(follow)
+        self.user_authorized_client.get(self.PROFILE_UNFOLLOW_URL)
+        unfollow = Follow.objects.filter(
+            author=self.author,
+            user=self.user
+        ).exists()
+        self.assertFalse(unfollow)
+        self.assertEqual(Follow.objects.count(), follow_count - 1)
+
+    def test_subscribed_user_can_see_following(self):
+        """Пост автора виден в ленте follow подписавшегося пользователя"""
+        self.user_authorized_client.get(self.PROFILE_FOLLOW_URL)
+        response = self.user_authorized_client.get(FOLLOW_URL)
+        self.assertIn(self.post, response.context['page'])
+
+    def test_not_subscribed_user_can_not_see_following(self):
+        """Пост автора не виден в ленте follow неподписавшегося пользователя"""
+        response = self.author_authorized_client.get(FOLLOW_URL)
+        self.assertNotIn(self.post, response.context['page'])
 
 
 class PaginatorViewsTest(TestCase):
