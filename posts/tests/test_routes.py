@@ -18,8 +18,10 @@ class RouteTests(TestCase):
             ['/', reverse('index')],
             ['/new/', reverse('new_post')],
             ['/follow/', reverse('follow_index')],
-            [f'/group/{SLUG}/', reverse('group_posts', args=[SLUG])],
-            [f'/{USERNAME}/', reverse('profile', args=[USERNAME])],
+            [f'/group/{SLUG}/', reverse('group_posts', args=[
+                SLUG])],
+            [f'/{USERNAME}/', reverse('profile', args=[
+                USERNAME])],
             [f'/{USERNAME}/{post.id}/', reverse('post', args=[
                 USERNAME, post.id])],
             [f'/{USERNAME}/{post.id}/edit/', reverse('post_edit', args=[

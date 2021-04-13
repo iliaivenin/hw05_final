@@ -124,7 +124,7 @@ class PostPagesTests(TestCase):
 
     def test_new_post_creates_new_post(self):
         """Главная страница кэширует информацию"""
-        posts_id = tuple(Post.objects.all().values_list('id', flat=True))
+        # posts_id = tuple(Post.objects.all().values_list('id', flat=True))
         response = self.guest_client.get(INDEX_URL)
         Post.objects.create(
             text=POST_TEXT_2,
@@ -136,42 +136,36 @@ class PostPagesTests(TestCase):
             response.content,
             response_after_adding_post.content
         )
-        self.assertNotContains(response_after_adding_post, POST_TEXT_2)
         cache.clear()
         response_after_cache_clear = self.guest_client.get(INDEX_URL)
-        self.assertEqual(
-            Post.objects.exclude(id__in=posts_id).count(), 1
-        )
         self.assertNotEqual(
             response.content,
             response_after_cache_clear.content
         )
-        self.assertContains(response_after_cache_clear, POST_TEXT_2)
 
     def test_authorized_user_can_follow(self):
         """Возможность подписываться на других пользователей"""
         self.user_authorized_client.get(self.PROFILE_FOLLOW_URL)
-        follow = Follow.objects.filter(
-            author=self.author,
-            user=self.user
-        ).exists()
-        self.assertTrue(follow)
+        self.assertTrue(
+            Follow.objects.filter(
+                author=self.author,
+                user=self.user
+            ).exists()
+        )
 
     def test_authorized_user_can_unfollow(self):
         """Возможность отписываться от других пользователей"""
-        follow = Follow.objects.create(
+        Follow.objects.create(
             author=self.author,
             user=self.user
         )
-        follow_count = Follow.objects.count()
-        self.assertTrue(follow)
         self.user_authorized_client.get(self.PROFILE_UNFOLLOW_URL)
-        unfollow = Follow.objects.filter(
-            author=self.author,
-            user=self.user
-        ).exists()
-        self.assertFalse(unfollow)
-        self.assertEqual(Follow.objects.count(), follow_count - 1)
+        self.assertFalse(
+            Follow.objects.filter(
+                author=self.author,
+                user=self.user
+            ).exists()
+        )
 
     def test_subscribed_user_can_see_following(self):
         """Пост автора виден в ленте follow подписавшегося пользователя"""
