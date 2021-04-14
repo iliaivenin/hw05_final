@@ -7,7 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-
+from .. import settings as sttngs
 from posts.models import Follow, Group, Post, User
 from posts.settings import POSTS_PER_PAGE
 
@@ -26,6 +26,8 @@ INDEX_URL = reverse('index')
 NEW_POST_URL = reverse('new_post')
 PROFILE_URL = reverse('profile', args=[USERNAME])
 FOLLOW_URL = reverse('follow_index')
+PROFILE_FOLLOW_URL = reverse('profile_follow', args=[USERNAME])
+PROFILE_UNFOLLOW_URL = reverse('profile_unfollow', args=[USERNAME])
 IMAGE = (
     b'\x47\x49\x46\x38\x39\x61\x02\x00'
     b'\x01\x00\x80\x00\x00\x00\x00\x00'
@@ -33,6 +35,12 @@ IMAGE = (
     b'\x00\x00\x00\x2C\x00\x00\x00\x00'
     b'\x02\x00\x01\x00\x00\x02\x02\x0C'
     b'\x0A\x00\x3B'
+)
+FILE_NAME = 'image.gif'
+file = SimpleUploadedFile(
+    name=FILE_NAME,
+    content=IMAGE,
+    content_type='image/gif'
 )
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
@@ -54,28 +62,17 @@ class PostPagesTests(TestCase):
             slug=SLUG_2,
             description=GROUP_DESCRIPTION_2
         )
-        cls.file = SimpleUploadedFile(
-            name='image.gif',
-            content=IMAGE,
-            content_type='image/gif'
-        )
         cls.post = Post.objects.create(
             text=POST_TEXT,
             author=cls.author,
             group=cls.group_1,
-            image=cls.file
+            image=file
         )
         cls.POST_URL = reverse('post', args=[
             cls.author, cls.post.id
         ])
         cls.POST_EDIT_URL = reverse('post_edit', args=[
             cls.author, cls.post.id
-        ])
-        cls.PROFILE_FOLLOW_URL = reverse('profile_follow', args=[
-            cls.author
-        ])
-        cls.PROFILE_UNFOLLOW_URL = reverse('profile_unfollow', args=[
-            cls.author
         ])
 
     @classmethod
@@ -92,10 +89,14 @@ class PostPagesTests(TestCase):
 
     def test_context(self):
         """Шаблоны страниц сформированы с правильным контекстом."""
-        urls = [INDEX_URL, PROFILE_URL, GROUP_URL_1, self.POST_URL]
+        Follow.objects.create(
+            author=self.author,
+            user=self.user
+        )
+        urls = [INDEX_URL, PROFILE_URL, GROUP_URL_1, self.POST_URL, FOLLOW_URL]
         for url in urls:
             with self.subTest(url=url):
-                response = self.author_authorized_client.get(url)
+                response = self.user_authorized_client.get(url)
                 if 'page' in response.context:
                     self.assertEqual(len(response.context['page']), 1)
                     post = response.context['page'][0]
@@ -107,7 +108,10 @@ class PostPagesTests(TestCase):
                     self.post.author
                 )
                 self.assertEqual(post.group, self.group_1)
-                self.assertEqual(post.image, 'posts/image.gif')
+                self.assertEqual(
+                    post.image,
+                    f'{sttngs.UPLOAD_FOLDER}{FILE_NAME}'
+                )
 
     def test_post_not_in_group_2(self):
         """Созданный пост не попал в чужую группу"""
@@ -115,7 +119,6 @@ class PostPagesTests(TestCase):
         self.assertNotIn(self.post, response.context['page'])
 
     def test_author(self):
-        """Пост с правильным автором."""
         urls = [PROFILE_URL, self.POST_URL]
         for url in urls:
             with self.subTest(url=url):
@@ -124,7 +127,6 @@ class PostPagesTests(TestCase):
 
     def test_new_post_creates_new_post(self):
         """Главная страница кэширует информацию"""
-        # posts_id = tuple(Post.objects.all().values_list('id', flat=True))
         response = self.guest_client.get(INDEX_URL)
         Post.objects.create(
             text=POST_TEXT_2,
@@ -145,7 +147,7 @@ class PostPagesTests(TestCase):
 
     def test_authorized_user_can_follow(self):
         """Возможность подписываться на других пользователей"""
-        self.user_authorized_client.get(self.PROFILE_FOLLOW_URL)
+        self.user_authorized_client.get(PROFILE_FOLLOW_URL)
         self.assertTrue(
             Follow.objects.filter(
                 author=self.author,
@@ -159,7 +161,7 @@ class PostPagesTests(TestCase):
             author=self.author,
             user=self.user
         )
-        self.user_authorized_client.get(self.PROFILE_UNFOLLOW_URL)
+        self.user_authorized_client.get(PROFILE_UNFOLLOW_URL)
         self.assertFalse(
             Follow.objects.filter(
                 author=self.author,
@@ -169,7 +171,7 @@ class PostPagesTests(TestCase):
 
     def test_subscribed_user_can_see_following(self):
         """Пост автора виден в ленте follow подписавшегося пользователя"""
-        self.user_authorized_client.get(self.PROFILE_FOLLOW_URL)
+        self.user_authorized_client.get(PROFILE_FOLLOW_URL)
         response = self.user_authorized_client.get(FOLLOW_URL)
         self.assertIn(self.post, response.context['page'])
 

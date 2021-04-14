@@ -48,7 +48,8 @@ def profile(request, username):
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
     following = (
-        request.user.is_authenticated and Follow.objects.filter(
+        request.user.is_authenticated and request.user != author
+        and Follow.objects.filter(
             user=request.user, author=author
         ).exists()
     )
@@ -61,15 +62,13 @@ def profile(request, username):
 
 def post_view(request, username, post_id):
     post = get_object_or_404(Post, author__username=username, id=post_id)
-    if request.method == 'POST' and request.user.is_authenticated:
-        form = CommentForm(request.POST or None)
-        if form.is_valid():
-            comment = form.save(commit=False)
-            comment.author = request.user
-            comment.post = post
-            comment.save()
-    comments = post.comments.filter(post=post)
+    comments = post.comments.all()
     form = CommentForm()
+    if form.is_valid():
+        comment = form.save(commit=False)
+        comment.author = request.user
+        comment.post = post
+        comment.save()
     return render(request, 'post.html', {
         'post': post,
         'author': post.author,
@@ -130,7 +129,7 @@ def profile_follow(request, username):
 
 @login_required
 def profile_unfollow(request, username):
-    author = User.objects.get(username=username)
+    author = get_object_or_404(User, username=username)
     Follow.objects.filter(
         user=request.user,
         author=author,

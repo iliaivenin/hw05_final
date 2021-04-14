@@ -7,7 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from .. import settings as set
+from .. import settings as sttngs
 from posts.forms import CommentForm, PostForm
 from posts.models import Comment, Group, Post, User
 
@@ -25,7 +25,7 @@ COMMENT_TEXT_1 = 'Это комментарий 1'
 COMMENT_TEXT_2 = 'А это ещё комментарий'
 INDEX_URL = reverse('index')
 NEW_POST_URL = reverse('new_post')
-UPLOAD_FOLDER = set.UPLOAD_FOLDER
+UPLOAD_FOLDER = sttngs.UPLOAD_FOLDER
 IMAGE_CONTENT = (
     b'\x47\x49\x46\x38\x39\x61\x02\x00'
     b'\x01\x00\x80\x00\x00\x00\x00\x00'
@@ -35,6 +35,17 @@ IMAGE_CONTENT = (
     b'\x0A\x00\x3B'
 )
 IMAGE_NAME = 'image.gif'
+IMAGE_NAME_2 = 'image2.gif'
+IMAGE = SimpleUploadedFile(
+    name=IMAGE_NAME,
+    content=IMAGE_CONTENT,
+    content_type='image/gif'
+)
+IMAGE_2 = SimpleUploadedFile(
+    name=IMAGE_NAME_2,
+    content=IMAGE_CONTENT,
+    content_type='image/gif'
+)
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
@@ -55,11 +66,6 @@ class PostFormTests(TestCase):
             slug=SLUG_2,
             description=GROUP_DESCRIPTION_2
         )
-        cls.image = SimpleUploadedFile(
-            name=IMAGE_NAME,
-            content=IMAGE_CONTENT,
-            content_type='image/gif'
-        )
         cls.post = Post.objects.create(
             text=POST_TEXT,
             author=cls.author,
@@ -71,15 +77,13 @@ class PostFormTests(TestCase):
         cls.POST_EDIT_URL = reverse('post_edit', args=[
             PostFormTests.author, PostFormTests.post.id
         ])
+        cls.author_authorized_client = Client()
+        cls.author_authorized_client.force_login(cls.author)
 
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
         super().tearDownClass()
-
-    def setUp(self):
-        self.author_authorized_client = Client()
-        self.author_authorized_client.force_login(self.author)
 
     def test_create_post(self):
         """Валидная форма поста создает запись в базе данных."""
@@ -88,7 +92,7 @@ class PostFormTests(TestCase):
         form_data = {
             'text': POST_TEXT_2,
             'group': self.group.id,
-            'image': self.image,
+            'image': IMAGE,
         }
         response = self.author_authorized_client.post(
             NEW_POST_URL,
@@ -105,16 +109,9 @@ class PostFormTests(TestCase):
         self.assertEqual(new_post.text, form_data['text'])
         self.assertEqual(new_post.group.id, form_data['group'])
         self.assertEqual(new_post.author, self.author)
-        self.assertTrue(
-            Post.objects.filter(
-                text=POST_TEXT_2,
-                group=self.group.id,
-                image=f'{set.UPLOAD_FOLDER}{IMAGE_NAME}'
-            ).exists()
-        )
         self.assertEqual(
             new_post.image,
-            f"{set.UPLOAD_FOLDER}{form_data['image'].name}"
+            f"{sttngs.UPLOAD_FOLDER}{form_data['image'].name}"
         )
 
     def test_edit_post(self):
@@ -123,6 +120,7 @@ class PostFormTests(TestCase):
         form_edit_data = {
             'text': EDITED_TEXT,
             'group': self.group_2.id,
+            'image': IMAGE_2,
         }
         response = self.author_authorized_client.post(
             self.POST_EDIT_URL, data=form_edit_data, follow=True
@@ -140,6 +138,10 @@ class PostFormTests(TestCase):
         self.assertEqual(
             updadted_post.author,
             self.post.author
+        )
+        self.assertEqual(
+            updadted_post.image,
+            f"{sttngs.UPLOAD_FOLDER}{form_edit_data['image'].name}"
         )
 
     def test_new_post_shows_correct_context(self):
@@ -179,10 +181,8 @@ class CommentFormTests(TestCase):
         cls.COMMENT_ADD_URL = reverse('add_comment', args=[
             CommentFormTests.author, CommentFormTests.post.id
         ])
-
-    def setUp(self):
-        self.author_authorized_client = Client()
-        self.author_authorized_client.force_login(self.author)
+        cls.author_authorized_client = Client()
+        cls.author_authorized_client.force_login(cls.author)
 
     def test_create_comment(self):
         """Валидная форма комментария создает запись в базе данных."""

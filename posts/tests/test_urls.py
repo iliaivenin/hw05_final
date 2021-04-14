@@ -9,14 +9,18 @@ SLUG = 'test_group'
 POST_TEXT = 'Тестовая публикация'
 GROUP_TITLE = 'Тестовое сообщество'
 GROUP_DESCRIPTION = 'Тестовое описание группы'
+PAGE_404 = '/page/not/found'
 INDEX_URL = reverse('index')
 NEW_POST_URL = reverse('new_post')
+LOGIN_URL = reverse('login')
+FOLLOW_INDEX_URL = reverse('follow_index')
 GROUP_URL = reverse('group_posts', args=[SLUG])
 PROFILE_URL = reverse('profile', args=[USERNAME])
-LOGIN_URL = reverse('login')
+PROFILE_FOLLOW_URL = reverse('profile_follow', args=[USERNAME])
+PROFILE_UNFOLLOW_URL = reverse('profile_unfollow', args=[USERNAME])
 LOGIN_NEW_POST_URL = f'{LOGIN_URL}?next={NEW_POST_URL}'
-PAGE_404 = '/page/not/found'
-FOLLOW_INDEX_URL = reverse('follow_index')
+LOGIN_PROFILE_FOLLOW_URL = f'{LOGIN_URL}?next={PROFILE_FOLLOW_URL}'
+LOGIN_PROFILE_UNFOLLOW_URL = f'{LOGIN_URL}?next={PROFILE_UNFOLLOW_URL}'
 LOGIN_FOLLOW_INDEX_URL = f'{LOGIN_URL}?next={FOLLOW_INDEX_URL}'
 
 
@@ -45,18 +49,12 @@ class PostURLTests(TestCase):
         cls.ADD_COMMENT_URL = reverse('add_comment', args=[
             cls.author, cls.post.id
         ])
-        cls.PROFILE_FOLLOW_URL = reverse('profile_follow', args=[cls.user])
-        cls.PROFILE_UNFOLLOW_URL = reverse('profile_unfollow', args=[cls.user])
-
-    def setUp(self):
-        # неавторизованный клиент
-        self.guest_client = Client()
-        # авторизованный клиент для автора записи
-        self.author_authorized_client = Client()
-        self.author_authorized_client.force_login(self.author)
-        # авторизованный клиент для другого пользователя
-        self.user_authorized_client = Client()
-        self.user_authorized_client.force_login(self.user)
+        cls.LOGIN_COMMENT_URL = f'{LOGIN_URL}?next={cls.ADD_COMMENT_URL}'
+        cls.guest_client = Client()
+        cls.author_authorized_client = Client()
+        cls.author_authorized_client.force_login(cls.author)
+        cls.user_authorized_client = Client()
+        cls.user_authorized_client.force_login(cls.user)
 
     def test_responses(self):
         """Проверка кодов возврата"""
@@ -75,10 +73,10 @@ class PostURLTests(TestCase):
             [FOLLOW_INDEX_URL, self.user_authorized_client, 200],
             [self.ADD_COMMENT_URL, self.author_authorized_client, 302],
             [self.ADD_COMMENT_URL, self.guest_client, 302],
-            [self.PROFILE_FOLLOW_URL, self.author_authorized_client, 302],
-            [self.PROFILE_FOLLOW_URL, self.guest_client, 302],
-            [self.PROFILE_UNFOLLOW_URL, self.author_authorized_client, 302],
-            [self.PROFILE_UNFOLLOW_URL, self.guest_client, 302],
+            [PROFILE_FOLLOW_URL, self.author_authorized_client, 302],
+            [PROFILE_FOLLOW_URL, self.guest_client, 302],
+            [PROFILE_UNFOLLOW_URL, self.author_authorized_client, 302],
+            [PROFILE_UNFOLLOW_URL, self.guest_client, 302],
         ]
         for url, client, code in responses:
             with self.subTest(url=url):
@@ -92,6 +90,12 @@ class PostURLTests(TestCase):
             [self.POST_EDIT_URL, self.guest_client, self.POST_URL],
             [self.POST_EDIT_URL, self.user_authorized_client, self.POST_URL],
             [self.ADD_COMMENT_URL, self.user_authorized_client, self.POST_URL],
+            [self.ADD_COMMENT_URL, self.guest_client, self.LOGIN_COMMENT_URL],
+            [PROFILE_FOLLOW_URL, self.author_authorized_client, PROFILE_URL],
+            [PROFILE_FOLLOW_URL, self.guest_client, LOGIN_PROFILE_FOLLOW_URL],
+            [PROFILE_UNFOLLOW_URL, self.author_authorized_client, PROFILE_URL],
+            [PROFILE_UNFOLLOW_URL, self.guest_client,
+                LOGIN_PROFILE_UNFOLLOW_URL],
         ]
         for url_in, client, url_out in redirects:
             with self.subTest(url_in=url_in):
