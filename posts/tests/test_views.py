@@ -7,7 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from .. import settings as sttngs
+from ..settings import UPLOAD_FOLDER
 from posts.models import Follow, Group, Post, User
 from posts.settings import POSTS_PER_PAGE
 
@@ -110,7 +110,7 @@ class PostPagesTests(TestCase):
                 self.assertEqual(post.group, self.group_1)
                 self.assertEqual(
                     post.image,
-                    f'{sttngs.UPLOAD_FOLDER}{FILE_NAME}'
+                    f'{UPLOAD_FOLDER}{FILE_NAME}'
                 )
 
     def test_post_not_in_group_2(self):
@@ -119,6 +119,7 @@ class PostPagesTests(TestCase):
         self.assertNotIn(self.post, response.context['page'])
 
     def test_author(self):
+        """Шаблоны страниц с правильным автором"""
         urls = [PROFILE_URL, self.POST_URL]
         for url in urls:
             with self.subTest(url=url):
@@ -171,7 +172,10 @@ class PostPagesTests(TestCase):
 
     def test_subscribed_user_can_see_following(self):
         """Пост автора виден в ленте follow подписавшегося пользователя"""
-        self.user_authorized_client.get(PROFILE_FOLLOW_URL)
+        Follow.objects.create(
+            author=self.author,
+            user=self.user
+        )
         response = self.user_authorized_client.get(FOLLOW_URL)
         self.assertIn(self.post, response.context['page'])
 

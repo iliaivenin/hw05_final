@@ -61,14 +61,9 @@ def profile(request, username):
 
 
 def post_view(request, username, post_id):
+    form = CommentForm()
     post = get_object_or_404(Post, author__username=username, id=post_id)
     comments = post.comments.all()
-    form = CommentForm()
-    if form.is_valid():
-        comment = form.save(commit=False)
-        comment.author = request.user
-        comment.post = post
-        comment.save()
     return render(request, 'post.html', {
         'post': post,
         'author': post.author,
@@ -77,6 +72,7 @@ def post_view(request, username, post_id):
     })
 
 
+@login_required
 def post_edit(request, username, post_id):
     if request.user.username != username:
         return redirect('post', username, post_id)
@@ -129,10 +125,10 @@ def profile_follow(request, username):
 
 @login_required
 def profile_unfollow(request, username):
-    author = get_object_or_404(User, username=username)
-    Follow.objects.filter(
+    get_object_or_404(
+        Follow,
         user=request.user,
-        author=author,
+        author__username=username,
     ).delete()
     return redirect('profile', username=username)
 

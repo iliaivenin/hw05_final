@@ -7,7 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from .. import settings as sttngs
+from ..settings import UPLOAD_FOLDER
 from posts.forms import CommentForm, PostForm
 from posts.models import Comment, Group, Post, User
 
@@ -25,7 +25,9 @@ COMMENT_TEXT_1 = 'Это комментарий 1'
 COMMENT_TEXT_2 = 'А это ещё комментарий'
 INDEX_URL = reverse('index')
 NEW_POST_URL = reverse('new_post')
-UPLOAD_FOLDER = sttngs.UPLOAD_FOLDER
+LOGIN_URL = reverse('login')
+LOGIN_NEW_POST_URL = f'{LOGIN_URL}?next={NEW_POST_URL}'
+UPLOAD_FOLDER = UPLOAD_FOLDER
 IMAGE_CONTENT = (
     b'\x47\x49\x46\x38\x39\x61\x02\x00'
     b'\x01\x00\x80\x00\x00\x00\x00\x00'
@@ -77,6 +79,8 @@ class PostFormTests(TestCase):
         cls.POST_EDIT_URL = reverse('post_edit', args=[
             PostFormTests.author, PostFormTests.post.id
         ])
+        cls.LOGIN_POST_EDIT_URL = f'{LOGIN_URL}?next={cls.POST_EDIT_URL}'
+        cls.guest_client = Client()
         cls.author_authorized_client = Client()
         cls.author_authorized_client.force_login(cls.author)
 
@@ -88,7 +92,7 @@ class PostFormTests(TestCase):
     def test_create_post(self):
         """Валидная форма поста создает запись в базе данных."""
         posts_id = tuple(Post.objects.all().values_list('id', flat=True))
-        posts_count = Post.objects.count()
+        posts_count = len(posts_id)
         form_data = {
             'text': POST_TEXT_2,
             'group': self.group.id,
@@ -99,19 +103,19 @@ class PostFormTests(TestCase):
             data=form_data,
             follow=True
         )
+        page = response.context['page']
+        for i in range(len(page)):
+            if page[i].id not in posts_id:
+                new_post = page[i]
         self.assertRedirects(response, INDEX_URL)
         self.assertEqual(
-            Post.objects.count(), posts_count + 1)
-        self.assertEqual(
-            Post.objects.exclude(id__in=posts_id).count(), 1
-        )
-        new_post = Post.objects.exclude(id__in=posts_id).first()
+            len(page), posts_count + 1)
         self.assertEqual(new_post.text, form_data['text'])
         self.assertEqual(new_post.group.id, form_data['group'])
         self.assertEqual(new_post.author, self.author)
         self.assertEqual(
             new_post.image,
-            f"{sttngs.UPLOAD_FOLDER}{form_data['image'].name}"
+            f"{UPLOAD_FOLDER}{form_data['image'].name}"
         )
 
     def test_edit_post(self):
@@ -141,7 +145,44 @@ class PostFormTests(TestCase):
         )
         self.assertEqual(
             updadted_post.image,
-            f"{sttngs.UPLOAD_FOLDER}{form_edit_data['image'].name}"
+            f"{UPLOAD_FOLDER}{form_edit_data['image'].name}"
+        )
+
+    def test_guest_cant_create_post(self):
+        """Гость не может создать пост"""
+        posts_count = Post.objects.count()
+        form_data = {
+            'text': POST_TEXT_2,
+        }
+        response = self.guest_client.post(
+            NEW_POST_URL,
+            data=form_data,
+            follow=True
+        )
+        self.assertFalse(
+            Post.objects.filter(text=POST_TEXT_2).exists()
+        )
+        self.assertRedirects(
+            response,
+            LOGIN_NEW_POST_URL
+        )
+        self.assertEqual(
+            Post.objects.count(), posts_count)
+
+    def test_guest_cant_edit_post(self):
+        """Гость не может редактировать пост"""
+        form_edit_data = {
+            'text': EDITED_TEXT,
+        }
+        response = self.guest_client.post(
+            self.POST_EDIT_URL, data=form_edit_data, follow=True
+        )
+        self.assertFalse(
+            Post.objects.filter(text=EDITED_TEXT).exists()
+        )
+        self.assertRedirects(
+            response,
+            self.LOGIN_POST_EDIT_URL
         )
 
     def test_new_post_shows_correct_context(self):
@@ -178,40 +219,37 @@ class CommentFormTests(TestCase):
         cls.POST_URL = reverse('post', args=[
             CommentFormTests.author, CommentFormTests.post.id
         ])
-        cls.COMMENT_ADD_URL = reverse('add_comment', args=[
+        cls.ADD_COMMENT_URL = reverse('add_comment', args=[
             CommentFormTests.author, CommentFormTests.post.id
         ])
+        cls.LOGIN_COMMENT_URL = f'{LOGIN_URL}?next={cls.ADD_COMMENT_URL}'
+        cls.guest_client = Client()
         cls.author_authorized_client = Client()
         cls.author_authorized_client.force_login(cls.author)
 
     def test_create_comment(self):
         """Валидная форма комментария создает запись в базе данных."""
         comments_id = tuple(Comment.objects.all().values_list('id', flat=True))
-        comments_count = Comment.objects.count()
+        comments_count = len(comments_id)
         form_data = {
             'text': COMMENT_TEXT_2,
             'post': self.post.id,
         }
         response = self.author_authorized_client.post(
-            self.COMMENT_ADD_URL,
+            self.ADD_COMMENT_URL,
             data=form_data,
             follow=True
         )
         self.assertRedirects(response, self.POST_URL)
+        comments = response.context['comments']
+        for i in range(len(comments)):
+            if comments[i].id not in comments_id:
+                new_comment = comments[i]
         self.assertEqual(
-            Comment.objects.count(), comments_count + 1)
-        self.assertEqual(
-            Comment.objects.exclude(id__in=comments_id).count(), 1
-        )
-        new_comment = Comment.objects.exclude(id__in=comments_id).first()
+            len(comments), comments_count + 1)
         self.assertEqual(new_comment.text, form_data['text'])
         self.assertEqual(new_comment.author, self.author)
-        self.assertTrue(
-            Comment.objects.filter(
-                text=COMMENT_TEXT_2,
-                post=self.post.id,
-            ).exists()
-        )
+        self.assertEqual(new_comment.post, self.post)
 
     def test_comment_shows_correct_context(self):
         """Шаблон comment сформирован с правильным контекстом."""
@@ -223,3 +261,25 @@ class CommentFormTests(TestCase):
             with self.subTest(value=value):
                 form_field = response.context['form'].fields[value]
                 self.assertIsInstance(form_field, expected)
+
+    def test_guest_cant_comment(self):
+        """Гость не может комментировать"""
+        form_data = {
+            'text': COMMENT_TEXT_2,
+            'post': self.post.id,
+        }
+        response = self.guest_client.post(
+            self.ADD_COMMENT_URL,
+            data=form_data,
+            follow=True
+        )
+        self.assertFalse(
+            Comment.objects.filter(
+                post=self.post.id,
+                text=COMMENT_TEXT_2
+            ).exists()
+        )
+        self.assertRedirects(
+            response,
+            self.LOGIN_COMMENT_URL
+        )

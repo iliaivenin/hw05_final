@@ -7,7 +7,7 @@
       </div>
       <div class="h3 text-muted">
         <!-- username автора -->
-        <a href="{% url 'profile' post.author.username %}">@{{ post.author.username }}</a>
+        <a href="{% url 'profile' author.username %}">@{{ author.username }}</a>
       </div>
     </div>
     <ul class="list-group list-group-flush">
@@ -23,6 +23,23 @@
           Записей: {{ author.posts.count }}
         </div>
       </li>
+      {% if request.user != author%}
+        <li class="list-group-item">
+          {% if following %}
+            <a
+              class="btn btn-lg btn-light" 
+              href="{% url 'profile_unfollow' author.username %}" role="button"> 
+              Отписаться 
+            </a>
+          {% else %}
+            <a 
+              class="btn btn-lg btn-primary" 
+              href="{% url 'profile_follow' author.username %}" role="button">
+              Подписаться 
+            </a>
+          {% endif %}
+        </li>
+      {% endif %}
     </ul>
   </div>
 </div>

@@ -49,6 +49,7 @@ class PostURLTests(TestCase):
         cls.ADD_COMMENT_URL = reverse('add_comment', args=[
             cls.author, cls.post.id
         ])
+        cls.LOGIN_POST_EDIT_URL = f'{LOGIN_URL}?next={cls.POST_EDIT_URL}'
         cls.LOGIN_COMMENT_URL = f'{LOGIN_URL}?next={cls.ADD_COMMENT_URL}'
         cls.guest_client = Client()
         cls.author_authorized_client = Client()
@@ -59,23 +60,22 @@ class PostURLTests(TestCase):
     def test_responses(self):
         """Проверка кодов возврата"""
         responses = [
+            [PAGE_404, self.guest_client, 404],
             [INDEX_URL, self.guest_client, 200],
             [GROUP_URL, self.guest_client, 200],
             [PROFILE_URL, self.guest_client, 200],
             [self.POST_URL, self.guest_client, 200],
             [NEW_POST_URL, self.user_authorized_client, 200],
             [self.POST_EDIT_URL, self.author_authorized_client, 200],
+            [FOLLOW_INDEX_URL, self.user_authorized_client, 200],
             [self.POST_EDIT_URL, self.user_authorized_client, 302],
             [self.POST_EDIT_URL, self.guest_client, 302],
             [NEW_POST_URL, self.guest_client, 302],
-            [PAGE_404, self.guest_client, 404],
             [FOLLOW_INDEX_URL, self.guest_client, 302],
-            [FOLLOW_INDEX_URL, self.user_authorized_client, 200],
             [self.ADD_COMMENT_URL, self.author_authorized_client, 302],
             [self.ADD_COMMENT_URL, self.guest_client, 302],
             [PROFILE_FOLLOW_URL, self.author_authorized_client, 302],
             [PROFILE_FOLLOW_URL, self.guest_client, 302],
-            [PROFILE_UNFOLLOW_URL, self.author_authorized_client, 302],
             [PROFILE_UNFOLLOW_URL, self.guest_client, 302],
         ]
         for url, client, code in responses:
@@ -87,13 +87,12 @@ class PostURLTests(TestCase):
         redirects = [
             [NEW_POST_URL, self.guest_client, LOGIN_NEW_POST_URL],
             [FOLLOW_INDEX_URL, self.guest_client, LOGIN_FOLLOW_INDEX_URL],
-            [self.POST_EDIT_URL, self.guest_client, self.POST_URL],
+            [self.POST_EDIT_URL, self.guest_client, self.LOGIN_POST_EDIT_URL],
             [self.POST_EDIT_URL, self.user_authorized_client, self.POST_URL],
             [self.ADD_COMMENT_URL, self.user_authorized_client, self.POST_URL],
             [self.ADD_COMMENT_URL, self.guest_client, self.LOGIN_COMMENT_URL],
             [PROFILE_FOLLOW_URL, self.author_authorized_client, PROFILE_URL],
             [PROFILE_FOLLOW_URL, self.guest_client, LOGIN_PROFILE_FOLLOW_URL],
-            [PROFILE_UNFOLLOW_URL, self.author_authorized_client, PROFILE_URL],
             [PROFILE_UNFOLLOW_URL, self.guest_client,
                 LOGIN_PROFILE_UNFOLLOW_URL],
         ]
