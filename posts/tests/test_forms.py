@@ -7,7 +7,6 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from ..settings import UPLOAD_FOLDER
 from posts.forms import CommentForm, PostForm
 from posts.models import Comment, Group, Post, User
 
@@ -27,7 +26,6 @@ INDEX_URL = reverse('index')
 NEW_POST_URL = reverse('new_post')
 LOGIN_URL = reverse('login')
 LOGIN_NEW_POST_URL = f'{LOGIN_URL}?next={NEW_POST_URL}'
-UPLOAD_FOLDER = UPLOAD_FOLDER
 IMAGE_CONTENT = (
     b'\x47\x49\x46\x38\x39\x61\x02\x00'
     b'\x01\x00\x80\x00\x00\x00\x00\x00'
@@ -115,7 +113,7 @@ class PostFormTests(TestCase):
         self.assertEqual(new_post.author, self.author)
         self.assertEqual(
             new_post.image,
-            f"{UPLOAD_FOLDER}{form_data['image'].name}"
+            f"{settings.UPLOAD_FOLDER}{form_data['image'].name}"
         )
 
     def test_edit_post(self):
@@ -145,7 +143,7 @@ class PostFormTests(TestCase):
         )
         self.assertEqual(
             updadted_post.image,
-            f"{UPLOAD_FOLDER}{form_edit_data['image'].name}"
+            f"{settings.UPLOAD_FOLDER}{form_edit_data['image'].name}"
         )
 
     def test_guest_cant_create_post(self):

@@ -1,7 +1,6 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
-
-from . import settings
 
 User = get_user_model()
 
@@ -21,12 +20,12 @@ class Group(models.Model):
         verbose_name="описание",
         help_text="описание сообщества",)
 
-    def __str__(self):
-        return self.title
-
     class Meta:
         verbose_name = "сообщество"
         verbose_name_plural = "сообщества"
+
+    def __str__(self):
+        return self.title
 
 
 class Post(models.Model):
@@ -60,16 +59,16 @@ class Post(models.Model):
         null=True,
     )
 
+    class Meta:
+        ordering = ["-pub_date"]
+        verbose_name = "запись"
+        verbose_name_plural = "записи"
+
     def __str__(self):
         OUTPUT = ('Текст: {text} | автор: {author} | сообщество: {group} | '
                   'дата публикации: {pub_date:%d.%m.%Y %H:%M}')
         return OUTPUT.format(text=self.text[:20], author=self.author.username,
                              group=self.group, pub_date=self.pub_date)
-
-    class Meta:
-        ordering = ["-pub_date"]
-        verbose_name = "запись"
-        verbose_name_plural = "записи"
 
 
 class Comment(models.Model):
@@ -121,6 +120,11 @@ class Follow(models.Model):
     class Meta:
         verbose_name = "подписка"
         verbose_name_plural = "подписки"
+        constraints = [
+            models.UniqueConstraint(
+                fields=['author', 'user'], name='unique_follower'
+            )
+        ]
 
     def __str__(self):
         OUTPUT = 'Пользователь: {user} | автор: {author}'

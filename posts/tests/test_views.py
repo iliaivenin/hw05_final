@@ -7,9 +7,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from ..settings import UPLOAD_FOLDER
 from posts.models import Follow, Group, Post, User
-from posts.settings import POSTS_PER_PAGE
+
 
 USERNAME = 'author'
 POST_TEXT = 'Тестовая публикация'
@@ -110,7 +109,7 @@ class PostPagesTests(TestCase):
                 self.assertEqual(post.group, self.group_1)
                 self.assertEqual(
                     post.image,
-                    f'{UPLOAD_FOLDER}{FILE_NAME}'
+                    f'{settings.UPLOAD_FOLDER}{FILE_NAME}'
                 )
 
     def test_post_not_in_group_2(self):
@@ -194,14 +193,14 @@ class PaginatorViewsTest(TestCase):
         Post.objects.bulk_create([Post(
             text=f'Тестовая публикация{i}',
             author=cls.test_user)
-            for i in range(cls.DELTA + POSTS_PER_PAGE)]
+            for i in range(cls.DELTA + settings.POSTS_PER_PAGE)]
         )
 
     def test_first_page(self):
         """Тест paginator 1-я страница"""
         self.assertEqual(
             len(self.client.get(INDEX_URL).context['page']),
-            POSTS_PER_PAGE
+            settings.POSTS_PER_PAGE
         )
 
     def test_second_page(self):
